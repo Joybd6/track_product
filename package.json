@@ -3,19 +3,37 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start - p $PORT",
+    "heroku-postbuild": "npm run build",
+    "lint": "eslint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "admin:bootstrap": "node scripts/bootstrap-admin.mjs",
+    "release": "prisma db push --accept-data-loss"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
+    "cheerio": "^1.2.0",
+    "cron-parser": "^5.5.0",
+    "jose": "^6.2.2",
     "next": "16.2.2",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.4",
+    "prisma": "^6.19.3",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "undici": "^8.0.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

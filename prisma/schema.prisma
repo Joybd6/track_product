@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum JobStatus {
+  idle
+  running
+  success
+  failed
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  forcePasswordChange Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  jobs    Job[]
+  runLogs JobRunLog[]
+}
+
+model Job {
+  id                String    @id @default(cuid())
+  name              String
+  url               String
+  schedule          String
+  selector          String
+  extractMode       String
+  attributeName     String?
+  conditionOperator String
+  conditionValue    String?
+  proxyEnabled      Boolean   @default(false)
+  proxyProtocol     String    @default("http")
+  proxyHost         String?
+  proxyPort         Int?
+  proxyUsername     String?
+  proxyPassword     String?
+  onMatchBehavior   String    @default("continue")
+  notificationMode  String    @default("transition_only")
+  cooldownMinutes   Int       @default(0)
+  enabled           Boolean   @default(true)
+  status            JobStatus @default(idle)
+  lastValue         String?
+  lastConditionMatched Boolean @default(false)
+  lastNotifiedAt    DateTime?
+  lastRunAt         DateTime?
+  lastError         String?
+  runCount          Int       @default(0)
+  triggerCount      Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  actions JobAction[]
+  runLogs JobRunLog[]
+}
+
+model JobAction {
+  id         String   @id @default(cuid())
+  type       String
+  configJson String?
+  createdAt  DateTime @default(now())
+
+  jobId String
+  job   Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+model JobRunLog {
+  id             String    @id @default(cuid())
+  triggerSource  String
+  status         JobStatus
+  triggered      Boolean
+  actionsHandled Int       @default(0)
+  summary        String
+  resultPreview  String?
+  rawResult      String?
+  error          String?
+  startedAt      DateTime
+  finishedAt     DateTime
+  createdAt      DateTime  @default(now())
+
+  jobId String
+  job   Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model AppConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

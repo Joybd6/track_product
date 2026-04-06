@@ -1,0 +1,32 @@
+{
+  "name": "scrap-component-app",
+  "description": "Website tracking and alerting app built with Next.js + Prisma",
+  "scripts": {
+    "postdeploy": "npm run admin:bootstrap"
+  },
+  "env": {
+    "AUTH_SECRET": {
+      "description": "JWT signing secret",
+      "generator": "secret"
+    },
+    "INIT_ADMIN_EMAIL": {
+      "description": "Initial admin email used during installation bootstrap"
+    },
+    "INIT_ADMIN_PASSWORD": {
+      "description": "Initial admin password used during installation bootstrap"
+    },
+    "RUN_SCHEDULER_DYNO": {
+      "description": "Only this dyno name will run cron scheduler",
+      "value": "web.1"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [
+    "heroku-postgresql:essential-0"
+  ]
+}
