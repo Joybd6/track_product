@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { createSessionToken, SESSION_COOKIE } from "@/lib/auth/session";
+import { getRegistrationEnabled } from "@/lib/settings/admin-settings";
 
 export const runtime = "nodejs";
 
@@ -19,12 +20,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    const userCount = await db.user.count();
+    const registrationEnabled = await getRegistrationEnabled();
+    if (!registrationEnabled && userCount > 0) {
+      return NextResponse.json({ error: "New registration is disabled by admin" }, { status: 403 });
+    }
+
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
     }
 
-    const userCount = await db.user.count();
     const user = await db.user.create({
       data: {
         email,

@@ -15,6 +15,7 @@ interface AlertPolicyDraft {
 }
 
 export default function JobsPage() {
+  const [currentUser, setCurrentUser] = useState<{ email: string; role: "USER" | "ADMIN" } | null>(null);
   const [jobs, setJobs] = useState<JobRecord[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -107,6 +108,15 @@ export default function JobsPage() {
   }, []);
 
   useEffect(() => {
+    void (async () => {
+      const res = await fetch("/api/auth/me");
+      if (!res.ok) {
+        return;
+      }
+      const data = (await res.json()) as { user: { email: string; role: "USER" | "ADMIN" } };
+      setCurrentUser(data.user);
+    })();
+
     const initial = window.setTimeout(() => {
       void loadJobs();
     }, 0);
@@ -280,9 +290,11 @@ export default function JobsPage() {
             <p className="mt-1 text-sm text-[var(--ink-muted)]">Monitor schedules, run results, and logs from one place.</p>
           </div>
           <div className="flex gap-2">
-            <Link href="/admin" className="btn-secondary text-center">
-              Admin
-            </Link>
+            {currentUser?.role === "ADMIN" ? (
+              <Link href="/admin" className="btn-secondary text-center">
+                Admin
+              </Link>
+            ) : null}
             <Link href="/" className="btn-secondary text-center">
               Wizard
             </Link>

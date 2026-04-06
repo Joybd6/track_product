@@ -1,15 +1,50 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function AuthPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
+  const [registrationEnabled, setRegistrationEnabled] = useState<boolean | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetch("/api/system/bootstrap-status");
+      if (!res.ok) {
+        return;
+      }
+
+      const data = (await res.json()) as { registrationEnabled?: boolean };
+      if (typeof data.registrationEnabled === "boolean") {
+        setRegistrationEnabled(data.registrationEnabled);
+        if (!data.registrationEnabled) {
+          setMode("login");
+        }
+      } else {
+        setRegistrationEnabled(true);
+      }
+    })();
+  }, []);
+
+  function selectMode(next: "login" | "register"): void {
+    if (next === mode) {
+      return;
+    }
+
+    if (next === "register" && registrationEnabled === false) {
+      setMode("login");
+      setError("New registration is currently disabled by the admin.");
+      return;
+    }
+
+    setError(null);
+    setMode(next);
+  }
 
   async function submit(): Promise<void> {
     setError(null);
@@ -48,19 +83,21 @@ export default function AuthPage() {
       <section className="panel p-5 sm:p-6">
         <h1 className="text-2xl font-semibold">Welcome</h1>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Register with your email, then create stock tracking alerts.
+          Sign in to manage trackers and alerts.
         </p>
 
         <div className="mt-4 flex gap-2">
           <button
             className={mode === "login" ? "btn-primary" : "btn-secondary"}
-            onClick={() => setMode("login")}
+            onClick={() => selectMode("login")}
+            disabled={mode === "login"}
           >
             Login
           </button>
           <button
             className={mode === "register" ? "btn-primary" : "btn-secondary"}
-            onClick={() => setMode("register")}
+            onClick={() => selectMode("register")}
+            disabled={mode === "register"}
           >
             Register
           </button>
@@ -83,7 +120,11 @@ export default function AuthPage() {
           />
         </div>
 
-        {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
+        {error ? (
+          <div className="mt-3 rounded-xl border border-[#e9d5b3] bg-[#fff6e8] px-3 py-2 text-sm text-[#6e4d1a]">
+            {error}
+          </div>
+        ) : null}
 
         <button className="btn-primary mt-4 w-full" onClick={() => void submit()} disabled={loading}>
           {loading ? "Please wait..." : mode === "login" ? "Login" : "Create account"}

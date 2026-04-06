@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 
 const SMTP_CONFIG_KEY = "smtp_config";
+const REGISTRATION_ENABLED_KEY = "registration_enabled";
 
 export interface SmtpConfig {
   host: string;
@@ -35,4 +36,26 @@ export async function saveSmtpConfig(config: SmtpConfig): Promise<SmtpConfig> {
     },
   });
   return config;
+}
+
+export async function getRegistrationEnabled(): Promise<boolean> {
+  const row = await db.appConfig.findUnique({ where: { key: REGISTRATION_ENABLED_KEY } });
+  if (!row) {
+    return true;
+  }
+
+  return row.value === "true";
+}
+
+export async function saveRegistrationEnabled(enabled: boolean): Promise<boolean> {
+  await db.appConfig.upsert({
+    where: { key: REGISTRATION_ENABLED_KEY },
+    update: { value: enabled ? "true" : "false" },
+    create: {
+      key: REGISTRATION_ENABLED_KEY,
+      value: enabled ? "true" : "false",
+    },
+  });
+
+  return enabled;
 }
