@@ -3,15 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { createSessionToken, SESSION_COOKIE } from "@/lib/auth/session";
-import { getRegistrationEnabled } from "@/lib/settings/admin-settings";
+import { consumeRegistrationInvite, getRegistrationMode } from "@/lib/settings/admin-settings";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = (await request.json()) as { email?: string; password?: string };
+    const body = (await request.json()) as { email?: string; password?: string; inviteCode?: string };
     const email = body.email?.trim().toLowerCase() ?? "";
     const password = body.password ?? "";
+    const inviteCode = body.inviteCode?.trim() ?? "";
 
     if (!email || !password || password.length < 8) {
       return NextResponse.json(
@@ -21,9 +22,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const userCount = await db.user.count();
-    const registrationEnabled = await getRegistrationEnabled();
-    if (!registrationEnabled && userCount > 0) {
-      return NextResponse.json({ error: "New registration is disabled by admin" }, { status: 403 });
+    const registrationMode = await getRegistrationMode();
+    if (userCount > 0 && registrationMode !== "open") {
+      if (registrationMode === "disabled") {
+        return NextResponse.json({ error: "New registration is disabled by admin" }, { status: 403 });
+      }
+
+      if (!inviteCode) {
+        return NextResponse.json({ error: "Invite code is required" }, { status: 403 });
+      }
+      const consumed = await consumeRegistrationInvite(inviteCode, email);
+      if (!consumed.ok) {
+        return NextResponse.json({ error: consumed.reason }, { status: 403 });
+      }
+    } else if (userCount > 0 && registrationMode === "open" && inviteCode) {
+      const consumed = await consumeRegistrationInvite(inviteCode, email);
+      if (!consumed.ok) {
+        return NextResponse.json({ error: consumed.reason }, { status: 403 });
+      }
     }
 
     const existing = await db.user.findUnique({ where: { email } });

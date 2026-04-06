@@ -6,9 +6,10 @@ import { useEffect, useState } from "react";
 export default function AuthPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [registrationEnabled, setRegistrationEnabled] = useState<boolean | null>(null);
+  const [registrationMode, setRegistrationMode] = useState<"open" | "disabled" | "invite_only" | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -19,26 +20,36 @@ export default function AuthPage() {
         return;
       }
 
-      const data = (await res.json()) as { registrationEnabled?: boolean };
-      if (typeof data.registrationEnabled === "boolean") {
-        setRegistrationEnabled(data.registrationEnabled);
-        if (!data.registrationEnabled) {
+      const data = (await res.json()) as {
+        registrationMode?: "open" | "disabled" | "invite_only";
+        registrationEnabled?: boolean;
+      };
+
+      if (typeof data.registrationMode === "string") {
+        setRegistrationMode(data.registrationMode);
+        if (data.registrationMode === "disabled") {
           setMode("login");
         }
+      } else if (typeof data.registrationEnabled === "boolean") {
+        setRegistrationMode(data.registrationEnabled ? "open" : "disabled");
       } else {
-        setRegistrationEnabled(true);
+        setRegistrationMode("open");
       }
     })();
   }, []);
+
+  function registrationBlockedMessage(currentMode: "disabled"): string {
+    return "New registration is currently disabled by the admin.";
+  }
 
   function selectMode(next: "login" | "register"): void {
     if (next === mode) {
       return;
     }
 
-    if (next === "register" && registrationEnabled === false) {
+    if (next === "register" && registrationMode === "disabled") {
       setMode("login");
-      setError("New registration is currently disabled by the admin.");
+      setError(registrationBlockedMessage(registrationMode));
       return;
     }
 
@@ -50,13 +61,20 @@ export default function AuthPage() {
     setError(null);
     setLoading(true);
 
+    if (mode === "register" && registrationMode === "disabled") {
+      setLoading(false);
+      setError(registrationBlockedMessage(registrationMode));
+      setMode("login");
+      return;
+    }
+
     const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, inviteCode: inviteCode.trim() || undefined }),
     });
 
     const payload = (await response.json()) as {
@@ -118,6 +136,15 @@ export default function AuthPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          {mode === "register" ? (
+            <input
+              className="field"
+              type="text"
+              placeholder={registrationMode === "invite_only" ? "Invite code (required)" : "Invite code (optional)"}
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+            />
+          ) : null}
         </div>
 
         {error ? (

@@ -47,6 +47,25 @@ async function getBootstrapState(request: NextRequest): Promise<{ isFirstRun: bo
   }
 }
 
+async function getAuthState(request: NextRequest): Promise<{ authenticated: boolean }> {
+  const url = request.nextUrl.clone();
+  url.pathname = "/api/auth/me";
+  url.search = "";
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        cookie: request.headers.get("cookie") ?? "",
+      },
+    });
+
+    return { authenticated: response.ok };
+  } catch {
+    return { authenticated: false };
+  }
+}
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
@@ -102,6 +121,15 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     const url = request.nextUrl.clone();
     url.pathname = "/auth";
     return NextResponse.redirect(url);
+  }
+
+  if (!pathname.startsWith("/api")) {
+    const authState = await getAuthState(request);
+    if (!authState.authenticated) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/auth";
+      return NextResponse.redirect(url);
+    }
   }
 
   if (session.forcePasswordChange) {

@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import {
   getRegistrationEnabled,
+  getRegistrationMode,
   getSmtpConfig,
-  saveRegistrationEnabled,
+  type RegistrationMode,
+  saveRegistrationMode,
   saveSmtpConfig,
 } from "@/lib/settings/admin-settings";
 
@@ -13,8 +15,9 @@ export async function GET(): Promise<NextResponse> {
   try {
     await requireAdmin();
     const smtp = await getSmtpConfig();
+    const registrationMode = await getRegistrationMode();
     const registrationEnabled = await getRegistrationEnabled();
-    return NextResponse.json({ smtp, registrationEnabled });
+    return NextResponse.json({ smtp, registrationEnabled, registrationMode });
   } catch (error) {
     if (error instanceof Error && error.message === "FORBIDDEN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -34,6 +37,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
       fromEmail?: string;
       secure?: boolean;
       registrationEnabled?: boolean;
+      registrationMode?: RegistrationMode;
     };
 
     let smtp = await getSmtpConfig();
@@ -55,12 +59,19 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    let registrationEnabled = await getRegistrationEnabled();
-    if (typeof body.registrationEnabled === "boolean") {
-      registrationEnabled = await saveRegistrationEnabled(body.registrationEnabled);
+    let registrationMode = await getRegistrationMode();
+    if (typeof body.registrationMode === "string") {
+      if (!["open", "disabled", "invite_only"].includes(body.registrationMode)) {
+        return NextResponse.json({ error: "registrationMode is invalid" }, { status: 400 });
+      }
+      registrationMode = await saveRegistrationMode(body.registrationMode);
+    } else if (typeof body.registrationEnabled === "boolean") {
+      registrationMode = await saveRegistrationMode(body.registrationEnabled ? "open" : "disabled");
     }
 
-    return NextResponse.json({ smtp, registrationEnabled });
+    const registrationEnabled = registrationMode === "open";
+
+    return NextResponse.json({ smtp, registrationEnabled, registrationMode });
   } catch (error) {
     if (error instanceof Error && error.message === "FORBIDDEN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
