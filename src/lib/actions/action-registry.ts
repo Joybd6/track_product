@@ -8,19 +8,21 @@ type ActionHandler = (ctx: {
   currentValue: string;
   previousValue?: string;
   recipientEmail: string;
+  contextData: Record<string, string>;
 }) => Promise<void>;
 
 const handlers: Record<string, ActionHandler> = {
-  console: async ({ job, currentValue, previousValue }) => {
+  console: async ({ job, currentValue, previousValue, contextData }) => {
     console.log("[tracker:triggered]", {
       jobId: job.id,
       name: job.name,
       currentValue,
       previousValue,
+      contextData,
       at: new Date().toISOString(),
     });
   },
-  webhook: async ({ action, job, currentValue, previousValue }) => {
+  webhook: async ({ action, job, currentValue, previousValue, contextData }) => {
     const url = action.config?.url;
     if (!url) {
       throw new Error("Webhook action requires config.url");
@@ -37,11 +39,12 @@ const handlers: Record<string, ActionHandler> = {
         name: job.name,
         currentValue,
         previousValue,
+        contextData,
         triggeredAt: new Date().toISOString(),
       }),
     });
   },
-  email: async ({ action, job, currentValue, previousValue, recipientEmail }) => {
+  email: async ({ action, job, currentValue, previousValue, recipientEmail, contextData }) => {
     const adminSmtp = await getSmtpConfig();
     const smtpHost = action.config?.smtpHost ?? adminSmtp?.host ?? process.env.SMTP_HOST;
     const smtpPort = Number(
@@ -64,6 +67,7 @@ const handlers: Record<string, ActionHandler> = {
       <p><strong>Selector:</strong> ${job.tracker.selector}</p>
       <p><strong>Current value:</strong> ${currentValue}</p>
       <p><strong>Previous value:</strong> ${previousValue ?? "(none)"}</p>
+      <p><strong>Context data:</strong> ${Object.keys(contextData).length > 0 ? JSON.stringify(contextData) : "(none)"}</p>
       <p><strong>Triggered at:</strong> ${new Date().toISOString()}</p>
     `;
 
@@ -83,7 +87,7 @@ const handlers: Record<string, ActionHandler> = {
       to,
       subject,
       html,
-      text: `Tracker ${job.name} triggered. Current value: ${currentValue}. Previous value: ${previousValue ?? "(none)"}. URL: ${job.url}`,
+      text: `Tracker ${job.name} triggered. Current value: ${currentValue}. Previous value: ${previousValue ?? "(none)"}. Context data: ${Object.keys(contextData).length > 0 ? JSON.stringify(contextData) : "(none)"}. URL: ${job.url}`,
       },
     );
   },
@@ -95,6 +99,7 @@ export async function runActions(input: {
   currentValue: string;
   previousValue?: string;
   recipientEmail: string;
+  contextData: Record<string, string>;
 }): Promise<{ handledCount: number }> {
   let handledCount = 0;
   for (const action of input.actions) {
@@ -109,6 +114,7 @@ export async function runActions(input: {
       currentValue: input.currentValue,
       previousValue: input.previousValue,
       recipientEmail: input.recipientEmail,
+      contextData: input.contextData,
     });
     handledCount += 1;
   }

@@ -4,7 +4,10 @@ export function shouldTrigger(
   condition: ConditionConfig,
   currentValue: string,
   previousValue?: string,
+  currentExists?: boolean,
 ): boolean {
+  const exists = typeof currentExists === "boolean" ? currentExists : currentValue.length > 0;
+
   switch (condition.operator) {
     case "changed":
       if (typeof previousValue === "undefined") {
@@ -25,6 +28,10 @@ export function shouldTrigger(
       const target = Number(condition.value ?? "NaN");
       return Number.isFinite(current) && Number.isFinite(target) && current < target;
     }
+    case "exists":
+      return exists;
+    case "not_exists":
+      return !exists;
     default:
       return false;
   }

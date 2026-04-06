@@ -19,7 +19,7 @@ function ensureTracker(input: unknown): TrackerConfig {
   }
 
   const extract = tracker.extract ?? "text";
-  if (!["text", "html", "attribute"].includes(extract)) {
+  if (!["text", "html", "attribute", "price", "stock", "regex"].includes(extract)) {
     throw new Error("tracker.extract is invalid");
   }
 
@@ -27,10 +27,39 @@ function ensureTracker(input: unknown): TrackerConfig {
     throw new Error("tracker.attributeName is required for extract=attribute");
   }
 
+  if (extract === "regex" && !tracker.regexPattern) {
+    throw new Error("tracker.regexPattern is required for extract=regex");
+  }
+
+  const fallbackSelectors = Array.isArray(tracker.fallbackSelectors)
+    ? tracker.fallbackSelectors
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    : [];
+
+  const contextDataPoints = Array.isArray(tracker.contextDataPoints)
+    ? tracker.contextDataPoints
+        .filter(
+          (point): point is NonNullable<TrackerConfig["contextDataPoints"]>[number] =>
+            typeof point === "object" && point !== null,
+        )
+        .map((point) => ({
+          key: point.key?.trim() ?? "",
+          selector: point.selector?.trim() ?? "",
+          extract: point.extract,
+          attributeName: point.attributeName,
+        }))
+        .filter((point) => point.key.length > 0 && point.selector.length > 0)
+    : [];
+
   return {
     selector: tracker.selector,
+    fallbackSelectors,
     extract,
     attributeName: tracker.attributeName,
+    regexPattern: tracker.regexPattern,
+    contextDataPoints,
   };
 }
 
@@ -39,7 +68,7 @@ function ensureCondition(input: unknown): ConditionConfig {
   const operator = condition.operator ?? "changed";
 
   if (
-    !["changed", "contains", "equals", "greater_than", "less_than"].includes(
+    !["changed", "contains", "equals", "greater_than", "less_than", "exists", "not_exists"].includes(
       operator,
     )
   ) {

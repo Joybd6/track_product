@@ -162,6 +162,8 @@ async function executeJob(jobId: string, triggerSource: "scheduled" | "manual"):
 
     const rawResult = JSON.stringify({
       currentValue: result.currentValue,
+      usedSelector: result.usedSelector,
+      contextData: result.contextData,
       conditionMatched: result.conditionMatched,
       notified: result.notified,
       actionsHandled: result.handledActionCount,

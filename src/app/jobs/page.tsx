@@ -350,228 +350,251 @@ export default function JobsPage() {
           ) : (
             filteredJobs.map((job) => (
               <article key={job.id} className="rounded-xl border border-[var(--line)] bg-white p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h2 className="text-base font-semibold">{job.name}</h2>
-                    <div className="text-xs text-[var(--ink-muted)]">{job.url}</div>
-                    <div className="mt-1 text-xs font-mono">selector: {job.tracker.selector}</div>
-                    <div className="mt-1 text-xs">condition: {job.condition.operator}{job.condition.value ? ` (${job.condition.value})` : ""}</div>
-                    <div className="mt-2 rounded border border-[var(--line)] bg-[#f8f6ef] p-2 text-xs">
-                      <strong>Latest result:</strong> {runResultByJob[job.id] ?? job.lastRunSummary ?? "No runs yet"}
-                    </div>
-                  </div>
-                  <div className="grid gap-1 text-xs">
-                    <div>Status: {job.status}</div>
-                    <div>Enabled: {job.enabled ? "yes" : "no"}</div>
-                    <div>Schedule: {job.schedule}</div>
-                    <div>On match: {job.alertPolicy.onMatchBehavior}</div>
-                    <div>Notify mode: {job.alertPolicy.notificationMode}</div>
-                    <div>Cooldown: {formatCooldown(job.alertPolicy.cooldownMinutes)}</div>
-                    <div>Next run: {formatDateTime(job.nextRunAt)}</div>
-                    <div>Last run: {formatDateTime(job.lastRunAt)}</div>
-                    <div>Last value: {job.lastValue?.slice(0, 80) ?? "-"}</div>
-                    <div>Run count: {job.runCount ?? 0}</div>
-                    <div>Trigger count: {job.triggerCount ?? 0}</div>
-                    {job.lastError ? <div className="text-red-700">Error: {job.lastError}</div> : null}
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button className="btn-secondary" onClick={() => void patchJob(job.id, { runNow: true, advancedMode })}>
-                    Run now
-                  </button>
-                  {scheduleDraftByJob[job.id] !== undefined ? (
-                    <>
-                      <input
-                        className="field min-w-[220px]"
-                        value={scheduleDraftByJob[job.id]}
-                        onChange={(e) =>
-                          setScheduleDraftByJob((prev) => ({
-                            ...prev,
-                            [job.id]: e.target.value,
-                          }))
-                        }
-                        placeholder="*/5 * * * *"
-                      />
-                      <button
-                        className="btn-secondary"
-                        disabled={savingScheduleByJob[job.id] === true}
-                        onClick={() => void saveSchedule(job.id, job.schedule)}
-                      >
-                        {savingScheduleByJob[job.id] === true ? "Saving..." : "Save schedule"}
-                      </button>
-                      <button
-                        className="btn-secondary"
-                        onClick={() =>
-                          setScheduleDraftByJob((prev) => {
-                            const next = { ...prev };
-                            delete next[job.id];
-                            return next;
-                          })
-                        }
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      className="btn-secondary"
-                      onClick={() =>
-                        setScheduleDraftByJob((prev) => ({
-                          ...prev,
-                          [job.id]: job.schedule,
-                        }))
-                      }
-                    >
-                      Edit schedule
-                    </button>
-                  )}
-                  {policyDraftByJob[job.id] ? (
-                    <>
-                      <select
-                        className="field"
-                        value={policyDraftByJob[job.id].onMatchBehavior}
-                        onChange={(e) =>
-                          setPolicyDraftByJob((prev) => ({
-                            ...prev,
-                            [job.id]: {
-                              ...prev[job.id],
-                              onMatchBehavior: e.target.value as JobRecord["alertPolicy"]["onMatchBehavior"],
-                            },
-                          }))
-                        }
-                      >
-                        <option value="continue">Keep running</option>
-                        <option value="pause">Pause after alert</option>
-                        <option value="disable">Disable after alert</option>
-                      </select>
-                      <select
-                        className="field"
-                        value={policyDraftByJob[job.id].notificationMode}
-                        onChange={(e) =>
-                          setPolicyDraftByJob((prev) => ({
-                            ...prev,
-                            [job.id]: {
-                              ...prev[job.id],
-                              notificationMode: e.target.value as JobRecord["alertPolicy"]["notificationMode"],
-                            },
-                          }))
-                        }
-                      >
-                        <option value="transition_only">Transition only</option>
-                        <option value="every_match">Every match</option>
-                      </select>
-                      <input
-                        className="field max-w-[120px]"
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={policyDraftByJob[job.id].cooldownValue}
-                        onChange={(e) =>
-                          setPolicyDraftByJob((prev) => ({
-                            ...prev,
-                            [job.id]: {
-                              ...prev[job.id],
-                              cooldownValue: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-                      <select
-                        className="field"
-                        value={policyDraftByJob[job.id].cooldownUnit}
-                        onChange={(e) =>
-                          setPolicyDraftByJob((prev) => ({
-                            ...prev,
-                            [job.id]: {
-                              ...prev[job.id],
-                              cooldownUnit: e.target.value as CooldownUnit,
-                            },
-                          }))
-                        }
-                      >
-                        <option value="minutes">minutes</option>
-                        <option value="hours">hours</option>
-                        <option value="days">days</option>
-                      </select>
-                      <button
-                        className="btn-secondary"
-                        disabled={savingPolicyByJob[job.id] === true}
-                        onClick={() => void savePolicy(job)}
-                      >
-                        {savingPolicyByJob[job.id] === true ? "Saving..." : "Save policy"}
-                      </button>
-                      <button
-                        className="btn-secondary"
-                        onClick={() =>
-                          setPolicyDraftByJob((prev) => {
-                            const next = { ...prev };
-                            delete next[job.id];
-                            return next;
-                          })
-                        }
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      className="btn-secondary"
-                      onClick={() => {
-                        const { cooldownValue, cooldownUnit } = minutesToDraft(job.alertPolicy.cooldownMinutes);
-                        setPolicyDraftByJob((prev) => ({
-                          ...prev,
-                          [job.id]: {
-                            onMatchBehavior: job.alertPolicy.onMatchBehavior,
-                            notificationMode: job.alertPolicy.notificationMode,
-                            cooldownValue,
-                            cooldownUnit,
-                          },
-                        }));
-                      }}
-                    >
-                      Edit policy
-                    </button>
-                  )}
-                  <button className="btn-secondary" onClick={() => void patchJob(job.id, { enabled: !job.enabled })}>
-                    {job.enabled ? "Disable" : "Enable"}
-                  </button>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => {
-                      const next = openLogJobId === job.id ? null : job.id;
-                      setOpenLogJobId(next);
-                      if (next) {
-                        void loadLogs(job.id);
-                      }
-                    }}
-                  >
-                    {openLogJobId === job.id ? "Hide logs" : "View logs"}
-                  </button>
-                  <button className="btn-secondary" onClick={() => void removeJob(job.id)}>
-                    Delete
-                  </button>
-                </div>
-
-                {openLogJobId === job.id ? (
-                  <div className="mt-3 rounded-xl border border-[var(--line)] bg-[#faf9f4] p-3">
-                    <div className="mb-2 text-xs text-[var(--ink-muted)]">
-                      Showing up to 50 recent logs. Raw result appears only in Advanced mode.
-                    </div>
-                    <div className="grid gap-2">
-                      {(logsByJob[job.id] ?? []).map((log) => (
-                        <div key={log.id} className="rounded border border-[var(--line)] bg-white p-2 text-xs">
-                          <div><strong>{log.status}</strong> at {new Date(log.finishedAt).toLocaleString()}</div>
-                          <div>{log.summary}</div>
-                          {log.resultPreview ? <div>Result: {log.resultPreview}</div> : null}
-                          {log.error ? <div className="text-red-700">Error: {log.error}</div> : null}
-                          {advancedMode && log.rawResult ? (
-                            <pre className="mt-1 overflow-x-auto rounded bg-[#f4f1e8] p-2 text-[11px]">{log.rawResult}</pre>
-                          ) : null}
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-base font-semibold">{job.name}</h2>
+                      <div className="truncate text-xs text-[var(--ink-muted)]">{job.url}</div>
+                      <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded border border-[var(--line)] bg-[#f8f6ef] px-2 py-1">
+                          <strong>Status:</strong> {job.status}
                         </div>
-                      ))}
+                        <div className="rounded border border-[var(--line)] bg-[#f8f6ef] px-2 py-1">
+                          <strong>Next run:</strong> {formatDateTime(job.nextRunAt)}
+                        </div>
+                        <div className="rounded border border-[var(--line)] bg-[#f8f6ef] px-2 py-1">
+                          <strong>Runs:</strong> {job.runCount ?? 0}
+                        </div>
+                        <div className="rounded border border-[var(--line)] bg-[#f8f6ef] px-2 py-1">
+                          <strong>Triggers:</strong> {job.triggerCount ?? 0}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button className="btn-primary" onClick={() => void patchJob(job.id, { runNow: true, advancedMode })}>
+                        Run now
+                      </button>
+                      <button className="btn-secondary" onClick={() => void patchJob(job.id, { enabled: !job.enabled })}>
+                        {job.enabled ? "Disable" : "Enable"}
+                      </button>
                     </div>
                   </div>
-                ) : null}
+
+                  <div className="rounded border border-[var(--line)] bg-[#f8f6ef] p-2 text-xs">
+                    <strong>Latest result:</strong> {runResultByJob[job.id] ?? job.lastRunSummary ?? "No runs yet"}
+                  </div>
+
+                  {job.lastError ? <div className="text-xs text-red-700">Latest error: {job.lastError}</div> : null}
+
+                  <details className="rounded-xl border border-[var(--line)] bg-[#fcfbf7]">
+                    <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold">Job details and controls</summary>
+                    <div className="grid gap-3 border-t border-[var(--line)] p-3 text-xs">
+                      <div>
+                        <div className="font-semibold">Tracking details</div>
+                        <div className="mt-1 font-mono">selector: {job.tracker.selector}</div>
+                        <div className="mt-1">condition: {job.condition.operator}{job.condition.value ? ` (${job.condition.value})` : ""}</div>
+                        <div className="mt-1">schedule: {job.schedule}</div>
+                        <div className="mt-1">last run: {formatDateTime(job.lastRunAt)}</div>
+                        <div className="mt-1">last value: {job.lastValue?.slice(0, 80) ?? "-"}</div>
+                        <div className="mt-1">on match: {job.alertPolicy.onMatchBehavior}</div>
+                        <div className="mt-1">notify mode: {job.alertPolicy.notificationMode}</div>
+                        <div className="mt-1">cooldown: {formatCooldown(job.alertPolicy.cooldownMinutes)}</div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {scheduleDraftByJob[job.id] !== undefined ? (
+                          <>
+                            <input
+                              className="field min-w-[220px]"
+                              value={scheduleDraftByJob[job.id]}
+                              onChange={(e) =>
+                                setScheduleDraftByJob((prev) => ({
+                                  ...prev,
+                                  [job.id]: e.target.value,
+                                }))
+                              }
+                              placeholder="*/5 * * * *"
+                            />
+                            <button
+                              className="btn-secondary"
+                              disabled={savingScheduleByJob[job.id] === true}
+                              onClick={() => void saveSchedule(job.id, job.schedule)}
+                            >
+                              {savingScheduleByJob[job.id] === true ? "Saving..." : "Save schedule"}
+                            </button>
+                            <button
+                              className="btn-secondary"
+                              onClick={() =>
+                                setScheduleDraftByJob((prev) => {
+                                  const next = { ...prev };
+                                  delete next[job.id];
+                                  return next;
+                                })
+                              }
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="btn-secondary"
+                            onClick={() =>
+                              setScheduleDraftByJob((prev) => ({
+                                ...prev,
+                                [job.id]: job.schedule,
+                              }))
+                            }
+                          >
+                            Edit schedule
+                          </button>
+                        )}
+                        {policyDraftByJob[job.id] ? (
+                          <>
+                            <select
+                              className="field"
+                              value={policyDraftByJob[job.id].onMatchBehavior}
+                              onChange={(e) =>
+                                setPolicyDraftByJob((prev) => ({
+                                  ...prev,
+                                  [job.id]: {
+                                    ...prev[job.id],
+                                    onMatchBehavior: e.target.value as JobRecord["alertPolicy"]["onMatchBehavior"],
+                                  },
+                                }))
+                              }
+                            >
+                              <option value="continue">Keep running</option>
+                              <option value="pause">Pause after alert</option>
+                              <option value="disable">Disable after alert</option>
+                            </select>
+                            <select
+                              className="field"
+                              value={policyDraftByJob[job.id].notificationMode}
+                              onChange={(e) =>
+                                setPolicyDraftByJob((prev) => ({
+                                  ...prev,
+                                  [job.id]: {
+                                    ...prev[job.id],
+                                    notificationMode: e.target.value as JobRecord["alertPolicy"]["notificationMode"],
+                                  },
+                                }))
+                              }
+                            >
+                              <option value="transition_only">Transition only</option>
+                              <option value="every_match">Every match</option>
+                            </select>
+                            <input
+                              className="field max-w-[120px]"
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={policyDraftByJob[job.id].cooldownValue}
+                              onChange={(e) =>
+                                setPolicyDraftByJob((prev) => ({
+                                  ...prev,
+                                  [job.id]: {
+                                    ...prev[job.id],
+                                    cooldownValue: e.target.value,
+                                  },
+                                }))
+                              }
+                            />
+                            <select
+                              className="field"
+                              value={policyDraftByJob[job.id].cooldownUnit}
+                              onChange={(e) =>
+                                setPolicyDraftByJob((prev) => ({
+                                  ...prev,
+                                  [job.id]: {
+                                    ...prev[job.id],
+                                    cooldownUnit: e.target.value as CooldownUnit,
+                                  },
+                                }))
+                              }
+                            >
+                              <option value="minutes">minutes</option>
+                              <option value="hours">hours</option>
+                              <option value="days">days</option>
+                            </select>
+                            <button
+                              className="btn-secondary"
+                              disabled={savingPolicyByJob[job.id] === true}
+                              onClick={() => void savePolicy(job)}
+                            >
+                              {savingPolicyByJob[job.id] === true ? "Saving..." : "Save policy"}
+                            </button>
+                            <button
+                              className="btn-secondary"
+                              onClick={() =>
+                                setPolicyDraftByJob((prev) => {
+                                  const next = { ...prev };
+                                  delete next[job.id];
+                                  return next;
+                                })
+                              }
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="btn-secondary"
+                            onClick={() => {
+                              const { cooldownValue, cooldownUnit } = minutesToDraft(job.alertPolicy.cooldownMinutes);
+                              setPolicyDraftByJob((prev) => ({
+                                ...prev,
+                                [job.id]: {
+                                  onMatchBehavior: job.alertPolicy.onMatchBehavior,
+                                  notificationMode: job.alertPolicy.notificationMode,
+                                  cooldownValue,
+                                  cooldownUnit,
+                                },
+                              }));
+                            }}
+                          >
+                            Edit policy
+                          </button>
+                        )}
+                        <button
+                          className="btn-secondary"
+                          onClick={() => {
+                            const next = openLogJobId === job.id ? null : job.id;
+                            setOpenLogJobId(next);
+                            if (next) {
+                              void loadLogs(job.id);
+                            }
+                          }}
+                        >
+                          {openLogJobId === job.id ? "Hide logs" : "View logs"}
+                        </button>
+                        <button className="btn-secondary" onClick={() => void removeJob(job.id)}>
+                          Delete
+                        </button>
+                      </div>
+
+                      {openLogJobId === job.id ? (
+                        <div className="rounded-xl border border-[var(--line)] bg-[#faf9f4] p-3">
+                          <div className="mb-2 text-xs text-[var(--ink-muted)]">
+                            Showing up to 50 recent logs. Raw result appears only in Advanced mode.
+                          </div>
+                          <div className="grid gap-2">
+                            {(logsByJob[job.id] ?? []).map((log) => (
+                              <div key={log.id} className="rounded border border-[var(--line)] bg-white p-2 text-xs">
+                                <div><strong>{log.status}</strong> at {new Date(log.finishedAt).toLocaleString()}</div>
+                                <div>{log.summary}</div>
+                                {log.resultPreview ? <div>Result: {log.resultPreview}</div> : null}
+                                {log.error ? <div className="text-red-700">Error: {log.error}</div> : null}
+                                {advancedMode && log.rawResult ? (
+                                  <pre className="mt-1 overflow-x-auto rounded bg-[#f4f1e8] p-2 text-[11px]">{log.rawResult}</pre>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </details>
+                </div>
               </article>
             ))
           )}

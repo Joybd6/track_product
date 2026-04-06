@@ -43,8 +43,11 @@ model Job {
   url               String
   schedule          String
   selector          String
+  fallbackSelectorsJson String?
   extractMode       String
   attributeName     String?
+  regexPattern      String?
+  contextDataPointsJson String?
   conditionOperator String
   conditionValue    String?
   proxyEnabled      Boolean   @default(false)

@@ -1,11 +1,13 @@
-export type ExtractMode = "text" | "html" | "attribute";
+export type ExtractMode = "text" | "html" | "attribute" | "price" | "stock" | "regex";
 
 export type ConditionOperator =
   | "changed"
   | "contains"
   | "equals"
   | "greater_than"
-  | "less_than";
+  | "less_than"
+  | "exists"
+  | "not_exists";
 
 export type ActionType = "console" | "webhook" | "email";
 
@@ -26,7 +28,17 @@ export interface ProxySettings {
 
 export interface TrackerConfig {
   selector: string;
+  fallbackSelectors?: string[];
   extract: ExtractMode;
+  attributeName?: string;
+  regexPattern?: string;
+  contextDataPoints?: ContextDataPoint[];
+}
+
+export interface ContextDataPoint {
+  key: string;
+  selector: string;
+  extract?: ExtractMode;
   attributeName?: string;
 }
 

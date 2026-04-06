@@ -59,6 +59,7 @@ body {
   padding: 0.7rem 0.95rem;
   font-weight: 600;
   cursor: pointer;
+  transition: transform 150ms ease, filter 150ms ease;
 }
 
 .btn-secondary {
@@ -69,10 +70,36 @@ body {
   padding: 0.65rem 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  transition: transform 150ms ease, background-color 150ms ease;
 }
 
 .btn-primary:hover,
 .btn-secondary:hover {
   transform: translateY(-1px);
-  transition: transform 150ms ease;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+summary {
+  user-select: none;
+}
+
+details[open] > summary {
+  background: color-mix(in oklab, var(--surface) 80%, white 20%);
+}
+
+.floating-action-bar {
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--line) 70%);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 92%) 0%, rgb(253 250 242 / 96%) 100%);
+  box-shadow:
+    0 16px 34px rgb(0 0 0 / 12%),
+    0 0 0 1px rgb(255 255 255 / 55%) inset;
+  backdrop-filter: blur(8px);
 }

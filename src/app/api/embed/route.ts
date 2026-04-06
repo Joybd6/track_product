@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { buildBrowserRequestHeaders } from "@/lib/scrape/fetch-page";
 
 export const runtime = "nodejs";
 
@@ -112,10 +113,10 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   const response = await fetch(parsed.toString(), {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; ScrapComponentEmbed/1.0)",
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    },
+    headers: buildBrowserRequestHeaders(
+      parsed.toString(),
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    ),
   });
 
   if (!response.ok) {

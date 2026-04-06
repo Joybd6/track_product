@@ -1,6 +1,7 @@
 import type {
   ActionConfig,
   ConditionConfig,
+  ContextDataPoint,
   JobConfig,
   JobRecord,
   JobRunLogRecord,
@@ -37,8 +38,11 @@ export interface JobWithRelations {
   url: string;
   schedule: string;
   selector: string;
+  fallbackSelectorsJson: string | null;
   extractMode: string;
   attributeName: string | null;
+  regexPattern: string | null;
+  contextDataPointsJson: string | null;
   conditionOperator: string;
   conditionValue: string | null;
   proxyEnabled: boolean;
@@ -78,11 +82,66 @@ export function parseActionConfig(configJson?: string | null): Record<string, st
   }
 }
 
+function parseJsonArray(input?: string | null): string[] {
+  if (!input) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(input) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function parseContextDataPoints(input?: string | null): ContextDataPoint[] {
+  if (!input) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(input) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const points: ContextDataPoint[] = [];
+    for (const item of parsed) {
+      if (typeof item !== "object" || item === null) {
+        continue;
+      }
+
+      const candidate = item as Partial<ContextDataPoint>;
+      if (!candidate.key || !candidate.selector) {
+        continue;
+      }
+
+      points.push({
+        key: candidate.key,
+        selector: candidate.selector,
+        extract: candidate.extract,
+        attributeName: candidate.attributeName,
+      });
+    }
+
+    return points;
+  } catch {
+    return [];
+  }
+}
+
 export function mapDbJobToRecord(job: JobWithRelations): JobRecord {
   const tracker: TrackerConfig = {
     selector: job.selector,
+    fallbackSelectors: parseJsonArray(job.fallbackSelectorsJson),
     extract: job.extractMode as TrackerConfig["extract"],
     attributeName: job.attributeName ?? undefined,
+    regexPattern: job.regexPattern ?? undefined,
+    contextDataPoints: parseContextDataPoints(job.contextDataPointsJson),
   };
 
   const condition: ConditionConfig = {
@@ -142,8 +201,17 @@ export function mapConfigToDbInput(config: JobConfig) {
     url: config.url,
     schedule: config.schedule,
     selector: config.tracker.selector,
+    fallbackSelectorsJson:
+      config.tracker.fallbackSelectors && config.tracker.fallbackSelectors.length > 0
+        ? JSON.stringify(config.tracker.fallbackSelectors)
+        : null,
     extractMode: config.tracker.extract,
     attributeName: config.tracker.attributeName ?? null,
+    regexPattern: config.tracker.regexPattern ?? null,
+    contextDataPointsJson:
+      config.tracker.contextDataPoints && config.tracker.contextDataPoints.length > 0
+        ? JSON.stringify(config.tracker.contextDataPoints)
+        : null,
     conditionOperator: config.condition.operator,
     conditionValue: config.condition.value ?? null,
     proxyEnabled: config.proxy.enabled,
