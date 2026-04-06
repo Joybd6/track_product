@@ -27,36 +27,6 @@ async function getBootstrapState(request: NextRequest): Promise<{ isFirstRun: bo
   }
 }
 
-async function getAuthState(request: NextRequest): Promise<{ authenticated: boolean; forcePasswordChange: boolean }> {
-  const url = request.nextUrl.clone();
-  url.pathname = "/api/auth/me";
-  url.search = "";
-
-  try {
-    const response = await fetch(url, {
-      cache: "no-store",
-      headers: {
-        cookie: request.headers.get("cookie") ?? "",
-      },
-    });
-
-    if (!response.ok) {
-      return { authenticated: false, forcePasswordChange: false };
-    }
-
-    const payload = (await response.json()) as {
-      user?: { forcePasswordChange?: boolean } | null;
-    };
-
-    return {
-      authenticated: true,
-      forcePasswordChange: payload.user?.forcePasswordChange === true,
-    };
-  } catch {
-    return { authenticated: false, forcePasswordChange: false };
-  }
-}
-
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
@@ -101,38 +71,6 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     const url = request.nextUrl.clone();
     url.pathname = "/auth";
     return NextResponse.redirect(url);
-  }
-
-  const authState = await getAuthState(request);
-  if (!authState.authenticated) {
-    if (pathname.startsWith("/api")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth";
-    return NextResponse.redirect(url);
-  }
-
-  if (authState.forcePasswordChange) {
-    const canProceed =
-      pathname.startsWith("/auth/change-password") ||
-      pathname.startsWith("/api/auth/change-password") ||
-      pathname.startsWith("/api/auth/logout") ||
-      pathname.startsWith("/api/auth/me");
-
-    if (!canProceed) {
-      if (pathname.startsWith("/api")) {
-        return NextResponse.json(
-          { error: "Password change required before continuing" },
-          { status: 403 },
-        );
-      }
-
-      const url = request.nextUrl.clone();
-      url.pathname = "/auth/change-password";
-      return NextResponse.redirect(url);
-    }
   }
 
   return NextResponse.next();

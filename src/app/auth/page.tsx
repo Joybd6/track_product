@@ -7,36 +7,57 @@ export default function AuthPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [registrationMode, setRegistrationMode] = useState<"open" | "disabled" | "invite_only" | null>(null);
+  const [initializing, setInitializing] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [transitioningAfterAuth, setTransitioningAfterAuth] = useState(false);
+  const showSkeleton = initializing || transitioningAfterAuth;
 
   useEffect(() => {
     void (async () => {
-      const res = await fetch("/api/system/bootstrap-status");
-      if (!res.ok) {
-        return;
-      }
-
-      const data = (await res.json()) as {
-        registrationMode?: "open" | "disabled" | "invite_only";
-        registrationEnabled?: boolean;
-      };
-
-      if (typeof data.registrationMode === "string") {
-        setRegistrationMode(data.registrationMode);
-        if (data.registrationMode === "disabled") {
-          setMode("login");
+      try {
+        const meRes = await fetch("/api/auth/me", { cache: "no-store" });
+        if (meRes.ok) {
+          const mePayload = (await meRes.json()) as {
+            user?: { forcePasswordChange?: boolean };
+          };
+          if (mePayload.user?.forcePasswordChange === true) {
+            router.replace("/auth/change-password");
+            return;
+          }
+          router.replace("/");
+          return;
         }
-      } else if (typeof data.registrationEnabled === "boolean") {
-        setRegistrationMode(data.registrationEnabled ? "open" : "disabled");
-      } else {
-        setRegistrationMode("open");
+
+        const res = await fetch("/api/system/bootstrap-status", { cache: "no-store" });
+        if (!res.ok) {
+          setRegistrationMode("open");
+          return;
+        }
+
+        const data = (await res.json()) as {
+          registrationMode?: "open" | "disabled" | "invite_only";
+          registrationEnabled?: boolean;
+        };
+
+        if (typeof data.registrationMode === "string") {
+          setRegistrationMode(data.registrationMode);
+          if (data.registrationMode === "disabled") {
+            setMode("login");
+          }
+        } else if (typeof data.registrationEnabled === "boolean") {
+          setRegistrationMode(data.registrationEnabled ? "open" : "disabled");
+        } else {
+          setRegistrationMode("open");
+        }
+      } finally {
+        setInitializing(false);
       }
     })();
-  }, []);
+  }, [router]);
 
   function registrationBlockedMessage(currentMode: "disabled"): string {
     return "New registration is currently disabled by the admin.";
@@ -87,7 +108,9 @@ export default function AuthPage() {
       return;
     }
 
+    setTransitioningAfterAuth(true);
     setLoading(false);
+
     if (payload.user?.forcePasswordChange === true) {
       router.push("/auth/change-password");
     } else {
@@ -104,58 +127,70 @@ export default function AuthPage() {
           Sign in to manage trackers and alerts.
         </p>
 
-        <div className="mt-4 flex gap-2">
-          <button
-            className={mode === "login" ? "btn-primary" : "btn-secondary"}
-            onClick={() => selectMode("login")}
-            disabled={mode === "login"}
-          >
-            Login
-          </button>
-          <button
-            className={mode === "register" ? "btn-primary" : "btn-secondary"}
-            onClick={() => selectMode("register")}
-            disabled={mode === "register"}
-          >
-            Register
-          </button>
-        </div>
-
-        <div className="mt-4 grid gap-3">
-          <input
-            className="field"
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            className="field"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {mode === "register" ? (
-            <input
-              className="field"
-              type="text"
-              placeholder={registrationMode === "invite_only" ? "Invite code (required)" : "Invite code (optional)"}
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-            />
-          ) : null}
-        </div>
-
-        {error ? (
-          <div className="mt-3 rounded-xl border border-[#e9d5b3] bg-[#fff6e8] px-3 py-2 text-sm text-[#6e4d1a]">
-            {error}
+        {showSkeleton ? (
+          <div className="mt-4 space-y-3">
+            <div className="h-10 w-full animate-pulse rounded-lg border border-[var(--line)] bg-[#f1eee4]" />
+            <div className="h-10 w-full animate-pulse rounded-lg border border-[var(--line)] bg-[#f1eee4]" />
+            <div className="h-10 w-full animate-pulse rounded-lg border border-[var(--line)] bg-[#f1eee4]" />
+            <div className="h-11 w-full animate-pulse rounded-lg bg-[#e3ddd0]" />
           </div>
-        ) : null}
+        ) : (
+          <>
 
-        <button className="btn-primary mt-4 w-full" onClick={() => void submit()} disabled={loading}>
-          {loading ? "Please wait..." : mode === "login" ? "Login" : "Create account"}
-        </button>
+            <div className="mt-4 flex gap-2">
+              <button
+                className={mode === "login" ? "btn-primary" : "btn-secondary"}
+                onClick={() => selectMode("login")}
+                disabled={mode === "login"}
+              >
+                Login
+              </button>
+              <button
+                className={mode === "register" ? "btn-primary" : "btn-secondary"}
+                onClick={() => selectMode("register")}
+                disabled={mode === "register"}
+              >
+                Register
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              <input
+                className="field"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <input
+                className="field"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              {mode === "register" ? (
+                <input
+                  className="field"
+                  type="text"
+                  placeholder={registrationMode === "invite_only" ? "Invite code (required)" : "Invite code (optional)"}
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                />
+              ) : null}
+            </div>
+
+            {error ? (
+              <div className="mt-3 rounded-xl border border-[#e9d5b3] bg-[#fff6e8] px-3 py-2 text-sm text-[#6e4d1a]">
+                {error}
+              </div>
+            ) : null}
+
+            <button className="btn-primary mt-4 w-full" onClick={() => void submit()} disabled={loading}>
+              {loading ? "Please wait..." : mode === "login" ? "Login" : "Create account"}
+            </button>
+          </>
+        )}
       </section>
     </main>
   );
