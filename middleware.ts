@@ -1,27 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
 
 const SESSION_COOKIE = "sc_session";
-
-async function verifySession(
-  token: string,
-): Promise<{ valid: boolean; forcePasswordChange: boolean }> {
-  try {
-    const secret = process.env.AUTH_SECRET;
-    if (!secret) {
-      return { valid: false, forcePasswordChange: false };
-    }
-
-    const verified = await jwtVerify(token, new TextEncoder().encode(secret));
-    return {
-      valid: true,
-      forcePasswordChange: verified.payload.forcePasswordChange === true,
-    };
-  } catch {
-    return { valid: false, forcePasswordChange: false };
-  }
-}
 
 async function getBootstrapState(request: NextRequest): Promise<{ isFirstRun: boolean }> {
   const url = request.nextUrl.clone();
@@ -47,7 +27,7 @@ async function getBootstrapState(request: NextRequest): Promise<{ isFirstRun: bo
   }
 }
 
-async function getAuthState(request: NextRequest): Promise<{ authenticated: boolean }> {
+async function getAuthState(request: NextRequest): Promise<{ authenticated: boolean; forcePasswordChange: boolean }> {
   const url = request.nextUrl.clone();
   url.pathname = "/api/auth/me";
   url.search = "";
@@ -60,9 +40,20 @@ async function getAuthState(request: NextRequest): Promise<{ authenticated: bool
       },
     });
 
-    return { authenticated: response.ok };
+    if (!response.ok) {
+      return { authenticated: false, forcePasswordChange: false };
+    }
+
+    const payload = (await response.json()) as {
+      user?: { forcePasswordChange?: boolean } | null;
+    };
+
+    return {
+      authenticated: true,
+      forcePasswordChange: payload.user?.forcePasswordChange === true,
+    };
   } catch {
-    return { authenticated: false };
+    return { authenticated: false, forcePasswordChange: false };
   }
 }
 
@@ -112,8 +103,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(url);
   }
 
-  const session = await verifySession(token);
-  if (!session.valid) {
+  const authState = await getAuthState(request);
+  if (!authState.authenticated) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -123,16 +114,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(url);
   }
 
-  if (!pathname.startsWith("/api")) {
-    const authState = await getAuthState(request);
-    if (!authState.authenticated) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/auth";
-      return NextResponse.redirect(url);
-    }
-  }
-
-  if (session.forcePasswordChange) {
+  if (authState.forcePasswordChange) {
     const canProceed =
       pathname.startsWith("/auth/change-password") ||
       pathname.startsWith("/api/auth/change-password") ||
